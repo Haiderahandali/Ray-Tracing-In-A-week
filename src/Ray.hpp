@@ -4,7 +4,7 @@
 #define MAX_SPHERE_COUNT 8
 #define MAX_PLANE_COUNT  8
 
-#include <cstdint>
+
 
 #define KB(Value) (1024 * (Value)) 
 #define MB(Value) (1024 * KB(Value))
@@ -15,6 +15,8 @@
 #define INLINE __attribute__((always_inline)) inline
 
 #define Internal static
+
+#include <cstdint>
 
 typedef int64_t  s64;
 typedef int32_t  s32;
@@ -29,25 +31,11 @@ typedef s32 b32;
 
 typedef float f32;
 
-
-
-
-union v2
+struct v2
 {
-    struct
-    {
-        f32 X;
-        f32 Y;
-    };
-    struct
-    {
-        f32 U;
-        f32 V;
-    };
+    f32 X;
+    f32 Y;
 };
-
-
-
 
 struct v3
 {
@@ -64,23 +52,17 @@ struct v4
     f32 W;
 };
 
-struct Ray
+struct ray
 {
-    v3 Ro;
-    v3 Rd;
+    v3 Origin;
+    v3 Dir;
 };
 
-struct material
-{
-    v3 Color;
-};
 
 struct sphere
 {
     f32 R;
     v3  Center;
-
-    u32 MaterialIndex;
 };
 
 struct plane
@@ -88,7 +70,6 @@ struct plane
     f32 D;
     v3  N;
 
-    u32 MaterialIndex;
 };
 
 
@@ -103,66 +84,28 @@ struct world
 
 struct film
 {
-    // Right Hand Coordinates System 
+    f32 W;      
+    f32 H;      
+    f32 HalfW;  
+    f32 HalfH;  
+    f32 X;      // Film Width  in Normalized Coordinates -1 to 1
+    f32 Y;      // Film Height in Normalized Coordinates -1 to 1
+    f32 Dist;   // Distance in Negative Z direction
 
-    u32 FilmW; // Film Width  In Pixels 
-    u32 FilmH; // Film Height In Pixels
-    u32 HalfFilmW;
-    u32 HalfFilmH;
-    f32 FilmX; // Film Width   in Normalized Coordinates -1 to 1
-    f32 FilmY; // Film Height  in Normalized Coordinates -1 to 1
-    f32 FilmDist; // Distance in Negative Z direction
-
-    v3 FilmCenter;
+    v3 Center;
 };
 
-struct image
+struct camera
 {
-    u8* ColorBuffer;
-    u32 W;
-    u32 H;
-    u8 BPP;
-    u8 ColorValue;
+    v3 Origin;
+    v3 DirX;
+    v3 DirY;
+    v3 DirZ;
 };
 
 
-struct polygon
-{
-    v3 Vertices[20];
-    u32  Count;
 
-    u32 MaterialIndex;
-};
-
-struct polygon_2d
-{
-    v2 Vertices[20];
-    u32 Count;
-
-    u32 MaterialIndex;
-};
-
-struct triangle
-{
-    v3 Vertices[3];
-    u32 Count;
-
-    u32 MaterialIndex;
-};
-
-struct quadrilateral
-{
-    v3 Vertices[4];
-    u32 Count;
-
-    u32 MaterialIndex;
-
-};
-
-typedef quadrilateral quad;
-
-
-
+//--------------------- Operator Overloading for vector operations BEGIN ------------------//
 Internal INLINE v2 operator- (v2& U, v2& V)
 {
     return {U.X - V.X, U.Y - V.Y};
@@ -263,35 +206,19 @@ Internal INLINE v3 operator/ (f32 C, v3 U)
 }
 
 
-// v3 operator += (v3 U, f32 C)
-// {
-//     return {U + C};
-// }
-// v3 operator += (v3 U, v3 V)
-// {
-//     return {U + V};
-// }
+v3& operator += (v3& U, v3 V)
+{
+    
+        U.X += V.X;  
+        U.Y += V.Y;  
+        U.Z += V.Z;
 
-// v3 operator -= (v3 U, f32 C)
-// {
-//     return {U - C};
-// }
-// v3 operator -= (v3 U, v3 V)
-// {
-//     return {U - V};
-// }
+        return U;
+}
 
-//Those are evil for now
-// v3 operator *= (v3 U, f32 C)
-// {
-//     v3 Result = {U*C};
-//     return (Result);
-// }
 
-// v3 operator /= (v3 U, f32 C)
-// {
-//     return {U / C};
-// }
+//--------------------- Operator Overloading for vector operations END ------------------//
+
 
 
 
