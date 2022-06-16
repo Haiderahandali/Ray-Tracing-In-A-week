@@ -64,6 +64,12 @@ struct v4
     f32 W;
 };
 
+struct Ray
+{
+    v3 Ro;
+    v3 Rd;
+};
+
 struct material
 {
     v3 Color;
@@ -255,6 +261,7 @@ Internal INLINE v3 operator/ (f32 C, v3 U)
             U.Y/C,
             U.Z/C};
 }
+
 
 // v3 operator += (v3 U, f32 C)
 // {

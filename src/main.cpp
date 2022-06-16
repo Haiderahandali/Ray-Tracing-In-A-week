@@ -237,9 +237,11 @@ void WritePPMPixel(u32 X, u32 Y, image* Image, u32 Color)
 int main(void)
 {
 
-    #if 0
     //my way of rendering
     {
+    #if 0
+    
+    
         // image_file RayImageFile = fopen("image.ppm", "wb");
         // image RayImage;
         // CreatePPMImage(&RayImage,512, 512);
@@ -249,23 +251,24 @@ int main(void)
 
         // WritePPMImage(RayImageFile, &RayImage);
         // fclose(RayImageFile);   
-    }
     #endif
+    }
 
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
     
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
         std::cerr << (u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
+
         for(s32 X = 0; X < ImageWidth; ++X)
         {
-            f32 R = (f32) X / (f32) (ImageWidth  - 1);
-            f32 G = (f32) Y / (f32) (ImageHeight - 1);
-            f32 B = 0.25f;
+            v3 Color = { (f32) X / (f32) (ImageWidth -1) , (f32) Y / (f32) (ImageHeight - 1) , 0.25f } ;
 
-            std::cout << (s32)(R * 255.0f) << ' ' << (s32)(G * 255.0f) << ' ' <<(s32)(B * 255.0f) << ' ' <<'\n';
+            WriteColor(std::cout, Color);
         }
     }
+
+    std::cerr << "\n-- Done --\n";
 
     return(0);
 }
