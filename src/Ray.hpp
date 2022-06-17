@@ -92,6 +92,7 @@ struct world
 
 struct film
 {
+    v3 Center;
     f32 W;      
     f32 H;      
     f32 HalfW;  
@@ -100,7 +101,6 @@ struct film
     f32 Y;      // Film Height in Normalized Coordinates -1 to 1
     f32 Dist;   // Distance in Negative Z direction
 
-    v3 Center;
 };
 
 struct camera
@@ -109,6 +109,10 @@ struct camera
     v3 DirX;
     v3 DirY;
     v3 DirZ;
+
+    f32 AspectRatio;
+    f32 FOV;
+
 };
 
 

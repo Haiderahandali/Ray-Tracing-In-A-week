@@ -2,7 +2,7 @@
 DIR=$(pwd)
 
 COMPILER="clang++"
-CFLAGS="-Wall -Wextra -Wconversion -Wshadow -Wpedantic -std=c++17 -g -O0"
+CFLAGS="-Wall -Wextra -Wconversion -Wshadow -Wpedantic -std=c++17 -g -O0 -fno-exceptions"
 OFFWARNINGS="-Wno-unused-function -Wno-missing-braces -Wno-gnu-anonymous-struct"
 
 SRC="$DIR/src/*.cpp"
