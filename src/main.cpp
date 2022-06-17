@@ -1,12 +1,8 @@
 #include "Ray.hpp"
 
-
 #include <iostream>
-#include <cstdio>
 #include <fstream>
 #include <cmath>
-
-
 
 
 #define BREAKPOINT \
@@ -67,9 +63,6 @@ void WriteColor(std::ostream& OutStream, v3 Color)
 }
 
 
-
-
-
 #define Tolerance 0.001f
 #define TMax 100000.0f 
 f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
@@ -96,9 +89,7 @@ f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
         T = -B + sqrtf(Disc);
     }
 
-
     return T;
-
 }
 
 
@@ -113,14 +104,14 @@ v3 RayColor(ray* Ray)
 int main(void)
 {
 
-    // f32 AspectRatio = (f32) 16.0f / (f32) 9.0f;
+    
 
-#if 1
+#if 0
     s32 ImageWidth   =  512;
     s32 ImageHeight  =  512;
 #else 
-    s32 ImageWidth = 400;
     f32 AspectRatio = (f32) 16.0f / (f32) 9.0f;
+    s32 ImageWidth = 400;
 
     s32 ImageHeight = (s32) ((f32) ImageWidth / AspectRatio);
 
@@ -140,7 +131,7 @@ int main(void)
     //----------- View Port ----------//
     film Film   = {};
     Film.H      = 2;
-    Film.W      = 2;
+    Film.W      = Film.H * AspectRatio;
     Film.HalfW  = Film.W * 0.5f ;
     Film.HalfH  = Film.H * 0.5f ;
     //---- camera is facing the negative Z Axis ----//
@@ -149,7 +140,7 @@ int main(void)
 
 
     //--------- Creating a sphere -------------//
-    sphere Sphere  = {6.0f, {10, 30 , -40.0f}};
+    sphere Sphere  = {6.0f, {0, 0 , -20.0f}};
 
 
     //writing the ppm image header
@@ -193,14 +184,16 @@ int main(void)
 
                 Color = CosAngle *  v3{1.0f, 0.0f, 0.0f};    
                 #else //No shading
+                v3 Normal = (Ray.Dir*T + Ray.Origin - Sphere.Center) / Sphere.R;
 
-                Color = {1.0f, 0.0f, 0.0f};
+                //Weird equation
+                Color = 0.5f * (Normal + 1);
                 #endif 
 
             }
             else
             {
-                Color =  {0.0f, 1.0f, 0.0f};
+                Color =  RayColor(&Ray);
             }
             
             WriteColor(std::cout, Color);
