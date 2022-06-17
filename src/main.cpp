@@ -68,7 +68,6 @@ void WriteColor(std::ostream& OutStream, v3 Color)
 #define TMin -0.001f
 f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 {
-
     f32 T = TMax;
 
     v3 X = Ray->Origin - Sphere->Center;
@@ -78,7 +77,6 @@ f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 
 
     f32 Disc = B*B - C;
-
 
     if(Disc < 0.0f) 
     {
@@ -101,6 +99,67 @@ v3 RayColor(ray* Ray)
     return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
 }
 
+
+
+v3 RayCast(ray* Ray, world* World) 
+{
+    v3 ResultColor = {};
+    hit_info HitInfo = {};
+    f32 Tclosest = TMax;
+    for(u32 SphereIndex = 0; SphereIndex < World->SphereCount; ++SphereIndex)
+    {
+        sphere* Sphere = &World->Sphere[SphereIndex];
+        f32 T = RayIntersectSphere(Ray, Sphere);
+            if( (T > TMin) && (T < Tclosest)) 
+            {
+
+                Tclosest = T;
+
+                #if 0 // With Shading
+
+                v3 P = (Ray.Dir*T) + Ray.Origin;
+                v3 PNormal = (P - Sphere.Center) / Sphere.R;
+
+                v3 LightDir = NOZ(P - Camera.Origin);
+
+                f32 CosAngle = Inner(-LightDir, PNormal);
+
+                Color = CosAngle *  v3{1.0f, 0.0f, 0.0f};    
+                #else //No shading
+                HitInfo.HitPoint = Ray->Dir*T + Ray->Origin;
+                HitInfo.Normal   = (HitInfo.HitPoint - Sphere->Center) / Sphere->R;
+                HitInfo.T        =  T;
+                HitInfo.RayIsOutward = Inner(HitInfo.Normal, Ray->Dir) > 0;
+
+                if(HitInfo.RayIsOutward) BREAKPOINT;
+                //Weird equation for normals but it works
+                
+                
+                #endif 
+
+            }
+            
+    }
+
+
+    for(u32 PlaneIndex = 0; PlaneIndex < World->PlaneCount; ++PlaneIndex)
+    {
+        ;
+    }
+
+
+    if(Tclosest < TMax)
+    {
+        // should this be for a sphere only?
+        ResultColor =   0.5f * (HitInfo.Normal + 1);
+    }
+    else
+    {
+        ResultColor =  RayColor(Ray);
+    }
+
+    return (ResultColor);
+}
 
 int main(void)
 {
@@ -140,9 +199,17 @@ int main(void)
 
 
 
-    //--------- Creating a sphere -------------//
-    sphere Sphere  = {6.0f, {0, 0 , -20.0f}};
+    //--------- Creating WorldObject sphere -------------//
+    world World = {};
+    sphere Sphere0  = {0.5f, {0.0f, 0.0f, -1.0f}};
+    sphere Sphere1  = {100.0f, {0, -100.5f , -1.0f}};
+    
 
+    Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere0;
+
+    // Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere1;
 
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
@@ -170,36 +237,7 @@ int main(void)
 
 
 
-            hit_info HitInfo = {};
-            v3 Color;
-            f32 T = RayIntersectSphere(&Ray, &Sphere);
-            if( (T > TMin) && (T < TMax)) 
-            {
-
-                #if 0 // With Shading
-
-                v3 P = (Ray.Dir*T) + Ray.Origin;
-                v3 PNormal = (P - Sphere.Center) / Sphere.R;
-
-                v3 LightDir = NOZ(P - Camera.Origin);
-
-                f32 CosAngle = Inner(-LightDir, PNormal);
-
-                Color = CosAngle *  v3{1.0f, 0.0f, 0.0f};    
-                #else //No shading
-                HitInfo.HitPoint = Ray.Dir*T + Ray.Origin;
-                HitInfo.Normal   = (HitInfo.HitPoint - Sphere.Center) / Sphere.R;
-                HitInfo.T        =  T;
-
-                //Weird equation for normals but it works
-                Color = 0.5f * (HitInfo.Normal + 1);
-                #endif 
-
-            }
-            else
-            {
-                Color =  RayColor(&Ray);
-            }
+            v3 Color = RayCast(&Ray, &World);
             
             WriteColor(std::cout, Color);
         }

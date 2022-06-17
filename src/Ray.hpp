@@ -1,14 +1,18 @@
 #ifndef RAY_HPP
 #define RAY_HPP
 
-#define MAX_SPHERE_COUNT 8
-#define MAX_PLANE_COUNT  8
+#define MAX_SPHERE_COUNT 20
+#define MAX_PLANE_COUNT  20
 
 
 
 #define KB(Value) (1024 * (Value)) 
 #define MB(Value) (1024 * KB(Value))
 #define GB(Value) (1024 * MB(Value))
+
+#define PI32 = 3.141592f
+
+#define DegreeToRad(Angle) ((f32) ((Angle) * PI32 / 180.0f)
 
 #define Assert(Expr) if(!(Expr)) { __builtin_trap(); }
 
@@ -52,6 +56,11 @@ struct v4
     f32 W;
 };
 
+struct material
+{
+    v3 Color;
+};
+
 struct ray
 {
     v3 Origin;
@@ -71,11 +80,10 @@ struct plane
     v3  N;
 
 };
-
+    
 
 struct world
 {
-    v3 O;
     sphere Sphere[MAX_SPHERE_COUNT] ;
     plane  Plane[MAX_PLANE_COUNT]  ;
     u32 SphereCount;
@@ -109,6 +117,7 @@ struct hit_info
     v3 HitPoint;
     v3 Normal;
     f32 T;
+    b32 RayIsOutward;
 };
 
 
