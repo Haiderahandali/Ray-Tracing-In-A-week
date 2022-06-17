@@ -104,6 +104,14 @@ struct camera
 };
 
 
+struct hit_info
+{
+    v3 HitPoint;
+    v3 Normal;
+    f32 T;
+};
+
+
 
 //--------------------- Operator Overloading for vector operations BEGIN ------------------//
 Internal INLINE v2 operator- (v2& U, v2& V)

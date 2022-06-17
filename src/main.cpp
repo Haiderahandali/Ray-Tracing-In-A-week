@@ -65,6 +65,7 @@ void WriteColor(std::ostream& OutStream, v3 Color)
 
 #define Tolerance 0.001f
 #define TMax 100000.0f 
+#define TMin -0.001f
 f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 {
 
@@ -168,9 +169,11 @@ int main(void)
             Ray.Dir = NOZ(Ray.Dir);
 
 
+
+            hit_info HitInfo = {};
             v3 Color;
             f32 T = RayIntersectSphere(&Ray, &Sphere);
-            if( (T < TMax)) 
+            if( (T > TMin) && (T < TMax)) 
             {
 
                 #if 0 // With Shading
@@ -184,10 +187,12 @@ int main(void)
 
                 Color = CosAngle *  v3{1.0f, 0.0f, 0.0f};    
                 #else //No shading
-                v3 Normal = (Ray.Dir*T + Ray.Origin - Sphere.Center) / Sphere.R;
+                HitInfo.HitPoint = Ray.Dir*T + Ray.Origin;
+                HitInfo.Normal   = (HitInfo.HitPoint - Sphere.Center) / Sphere.R;
+                HitInfo.T        =  T;
 
-                //Weird equation
-                Color = 0.5f * (Normal + 1);
+                //Weird equation for normals but it works
+                Color = 0.5f * (HitInfo.Normal + 1);
                 #endif 
 
             }
