@@ -92,9 +92,9 @@ void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 
 
 
-    OutStream << (s32) ( ClampValueBetween(Color.X * C, 0.0f, 0.999f) * 255.999f) << ' '
-              << (s32) ( ClampValueBetween(Color.Y * C, 0.0f, 0.999f) * 255.999f) << ' '
-              << (s32) ( ClampValueBetween(Color.Z * C, 0.0f, 0.999f) * 255.999f) << '\n';
+    OutStream << (s32) ( ClampValueBetween(sqrtf(Color.X * C), 0.0f, 0.999f) * 255.999f) << ' '
+              << (s32) ( ClampValueBetween(sqrtf(Color.Y * C), 0.0f, 0.999f) * 255.999f) << ' '
+              << (s32) ( ClampValueBetween(sqrtf(Color.Z * C), 0.0f, 0.999f) * 255.999f) << '\n';
 
 }
 
