@@ -5,7 +5,7 @@
 #include <cmath>
 
 
-#define RECURSION_DEPTH 50
+
 
 #define BREAKPOINT asm("int $3")
 
@@ -72,11 +72,14 @@ v3 RandomVec(f32 Min, f32 Max)
 
 v3 RandomPointOnUnitSphere(void)
 {
-    v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1};
-    if ((Point.X * Point.X + Point.Y * Point.Y + Point.Z * Point.Z) >= 1)
+    v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1}; 
+    while(((Point.X * Point.X + Point.Y * Point.Y + Point.Z * Point.Z) >= 1))
     {
-        return Point - 0.42f;
+        
+        Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1};
+        
     }
+    
 
     return Point;
 }
@@ -98,7 +101,7 @@ void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 
 #define Tolerance 0.001f
 #define TMax 100000.0f 
-#define TMin -0.001f
+#define TMin 0.001f
 f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 {
     f32 T = TMax;
@@ -134,8 +137,13 @@ v3 RayColor(ray* Ray)
     return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
 }
 
-v3 RayCast(ray* Ray, world* World) 
+v3 RayCast(ray* Ray, world* World, s32 RecursionDepth) 
 {
+    if(!RecursionDepth) 
+    {
+        return {0.0f, 0.0f, 0.0f};
+    }
+
     v3 ResultColor = {};
     hit_info HitInfo = {};
     f32 Tclosest = TMax;
@@ -148,24 +156,12 @@ v3 RayCast(ray* Ray, world* World)
 
                 Tclosest = T;
 
-                #if 0 // With Shading
-
-                v3 P = (Ray.Dir*T) + Ray.Origin;
-                v3 PNormal = (P - Sphere.Center) / Sphere.R;
-                v3 LightDir = NOZ(P - Camera.Origin);
-                f32 CosAngle = Inner(-LightDir, PNormal);
-                Color = CosAngle *  v3{1.0f, 0.0f, 0.0f};
-
-                #else //No shading
-
                 HitInfo.HitPoint = Ray->Dir*T + Ray->Origin;
                 HitInfo.Normal   = (HitInfo.HitPoint - Sphere->Center) / Sphere->R;
                 HitInfo.T        =  T;
                 HitInfo.RayIsOutward = Inner(HitInfo.Normal, Ray->Dir) > 0;
+                if(HitInfo.RayIsOutward) HitInfo.Normal = -HitInfo.Normal;
 
-                if(HitInfo.RayIsOutward) BREAKPOINT;
-                
-                #endif 
 
             }
             
@@ -181,11 +177,24 @@ v3 RayCast(ray* Ray, world* World)
     if(Tclosest < TMax)
     {
         // should this be for a sphere only?
-        ResultColor =   0.5f * (HitInfo.Normal + 1);
+
+        v3 Target = HitInfo.HitPoint + HitInfo.Normal + RandomPointOnUnitSphere();
+        ray NewRay = {HitInfo.HitPoint, v3{Target - HitInfo.HitPoint}};
+        return  0.5f *  RayCast(&NewRay ,World, RecursionDepth-1);
+         // return 0.5f * (HitInfo.Normal + 1);
     }
     else
     {
-        ResultColor =  RayColor(Ray);
+
+        // ResultColor = RayColor(Ray);
+        
+        f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
+        return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
+       
+
+        // v3 Dir = NOZ(Ray->Dir);
+        // f32 t = 0.5f * Dir.Y + 1.0f;
+        // return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
     }
 
     return (ResultColor);
@@ -225,7 +234,7 @@ int main(void)
     //--------- Creating WorldObject sphere -------------//
     world World = {};
     sphere Sphere0  = {0.5f, {0.0f, 0.0f, -1.0f}};
-    sphere Sphere1  = {100.0f, {0, -105.5f , -1.0f}};
+    sphere Sphere1  = {100.0f, {0, -100.5f , -1.0f}};
     
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
@@ -238,7 +247,7 @@ int main(void)
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
 
 
-    u32 SamplesCount = 10;
+    u32 SamplesCount = 100;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
         std::cerr << (u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
@@ -258,7 +267,7 @@ int main(void)
                 Ray.Dir += Film.X * Film.HalfW * Camera.DirX;
                 Ray.Dir = NOZ(Ray.Dir);
                 //------ super sampling ray tracing----//;
-                Color = Color + RayCast(&Ray, &World);
+                Color = Color + RayCast(&Ray, &World, 50);
             }            
             
             WriteColor(std::cout, Color, SamplesCount);
