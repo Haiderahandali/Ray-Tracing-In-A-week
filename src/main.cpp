@@ -90,8 +90,6 @@ void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 
     f32 C = 1.0f/(f32)SamplesPerPixel;
 
-
-
     OutStream << (s32) ( ClampValueBetween(sqrtf(Color.X * C), 0.0f, 0.999f) * 255.999f) << ' '
               << (s32) ( ClampValueBetween(sqrtf(Color.Y * C), 0.0f, 0.999f) * 255.999f) << ' '
               << (s32) ( ClampValueBetween(sqrtf(Color.Z * C), 0.0f, 0.999f) * 255.999f) << '\n';
@@ -178,7 +176,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     {
         // should this be for a sphere only?
 
-        v3 Target = HitInfo.HitPoint + HitInfo.Normal + RandomPointOnUnitSphere();
+        v3 Target = HitInfo.HitPoint + HitInfo.Normal + NOZ(RandomPointOnUnitSphere());
         ray NewRay = {HitInfo.HitPoint, v3{Target - HitInfo.HitPoint}};
         return  0.5f *  RayCast(&NewRay ,World, RecursionDepth-1);
          // return 0.5f * (HitInfo.Normal + 1);
