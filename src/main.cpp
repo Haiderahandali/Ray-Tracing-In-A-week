@@ -71,12 +71,15 @@ v3 Hadamard(v3 V, v3 U)
 }
 
 
-Internal INLINE v3 RandomVec(f32 Min, f32 Max)
+Internal INLINE 
+v3 RandomVec(f32 Min, f32 Max)
 {
     return {RandomInterval(Min,Max), RandomInterval(Min,Max), RandomInterval(Min,Max)};
 }
 
-Internal INLINE v3 RandomPointOnUnitSphere(void)
+
+Internal INLINE 
+v3 RandomPointOnUnitSphere(void)
 {
     v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1}; 
     while(((Point.X * Point.X + Point.Y * Point.Y + Point.Z * Point.Z) >= 1))
@@ -88,10 +91,18 @@ Internal INLINE v3 RandomPointOnUnitSphere(void)
     return Point;
 }
 
+Internal INLINE
+v3 RandomUnitVec(void)
+{
+    return NOZ(RandomPointOnUnitSphere());
+}
+
+
+
 Internal INLINE v3 RandomPointOnHemisphere(v3* HemiSphereNormal)
 {
-    v3 RandomUnitVec = NOZ(RandomPointOnUnitSphere());
-    return Inner(RandomUnitVec, *HemiSphereNormal) > 0 ? RandomUnitVec : -RandomUnitVec;
+    v3 UnitVec = RandomUnitVec();
+    return Inner(UnitVec, *HemiSphereNormal) > 0 ? UnitVec : -UnitVec;
 }
 
 
@@ -152,7 +163,7 @@ Internal INLINE f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 Internal INLINE 
 void ScatterDiffuse(material* MaterialPtr, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
 {
-    v3 ScatterDir = HitInfo->Normal + NOZ(RandomPointOnUnitSphere());
+    v3 ScatterDir = HitInfo->Normal + RandomUnitVec();
 
     if(VecNearZero(&ScatterDir)) 
     {
@@ -166,7 +177,7 @@ void ScatterDiffuse(material* MaterialPtr, hit_info* HitInfo, v3* Attentuation, 
 Internal INLINE b32 ScatterMetalic(material* MaterialPtr, ray* Ray, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
 {
     v3 ReflectedRay = VecReflectOverNormal(&Ray->Dir, &HitInfo->Normal);
-    *ScatteredRay   = {HitInfo->HitPoint , ReflectedRay};
+    *ScatteredRay   = {HitInfo->HitPoint , (MaterialPtr->Fuzz * RandomUnitVec()) + ReflectedRay};
     *Attentuation   = MaterialPtr->AlbedoColor;
 
     return (Inner(ScatteredRay->Dir, HitInfo->Normal) > 0);
@@ -299,12 +310,12 @@ int main(void)
     world World = {};
 
 
-    material MaterialBackGround = {0.0f, 0.0f, 0.0f};
+    material MaterialBackGround = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    material MaterialGround = {0.8f, 0.8f, 0.0f};
-    material MaterialCenter = {0.7f, 0.3f, 0.3f};
-    material MaterialLeft   = {0.8f, 0.8f, 0.8f};
-    material MaterialRight  = {0.8f, 0.6f, 0.2f};
+    material MaterialGround = {0.8f, 0.8f, 0.0f, 1.0f};
+    material MaterialCenter = {0.7f, 0.3f, 0.3f, 1.0f};
+    material MaterialLeft   = {0.8f, 0.8f, 0.8f, 0.3f};
+    material MaterialRight  = {0.8f, 0.6f, 0.2f, 1.0f};
 
     sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
     sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
