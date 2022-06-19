@@ -4,11 +4,7 @@
 #include <fstream>
 #include <cmath>
 
-
-
-
 #define BREAKPOINT asm("int $3")
-
 
 Internal INLINE std::ostream& operator<<(std::ostream& OutStream, v3* V)
 {
@@ -29,7 +25,7 @@ Internal INLINE f32 RandomInterval(f32 IntervalMin, f32 IntervalMax)
     return (IntervalMin + (IntervalMax - IntervalMin)*Random());
 }   
 
-f32 ClampValueBetween(f32 Value, f32 Min, f32 Max)
+Internal INLINE f32 ClampValueBetween(f32 Value, f32 Min, f32 Max)
 {
     if(Value < Min) return Min;
     if(Value > Max) return Max;
@@ -41,7 +37,7 @@ Internal INLINE f32 Inner(v3 U, v3 V)
     return (U.X * V.X + U.Y * V.Y +  U.Z * V.Z );
 }
 
-v3 NOZ(v3 U)
+Internal INLINE v3 NOZ(v3 U)
 {
     f32 Domen = sqrtf(Inner(U,U));
 
@@ -53,7 +49,7 @@ v3 NOZ(v3 U)
     };
 }
 
-v3 Cross(v3 V1, v3 V2)
+Internal INLINE v3 Cross(v3 V1, v3 V2)
 {
     v3 Result = {};
 
@@ -63,29 +59,55 @@ v3 Cross(v3 V1, v3 V2)
     return (Result);
 }
 
+Internal INLINE
+v3 Hadamard(v3 V, v3 U)
+{
+    return 
+    {
+        V.X * U.X,
+        V.Y * U.Y,
+        V.Z * U.Z,
+    };
+}
 
 
-v3 RandomVec(f32 Min, f32 Max)
+Internal INLINE v3 RandomVec(f32 Min, f32 Max)
 {
     return {RandomInterval(Min,Max), RandomInterval(Min,Max), RandomInterval(Min,Max)};
 }
 
-v3 RandomPointOnUnitSphere(void)
+Internal INLINE v3 RandomPointOnUnitSphere(void)
 {
     v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1}; 
     while(((Point.X * Point.X + Point.Y * Point.Y + Point.Z * Point.Z) >= 1))
     {
-        
+
         Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1};
         
     }
-    
-
     return Point;
 }
 
+Internal INLINE v3 RandomPointOnHemisphere(v3* HemiSphereNormal)
+{
+    v3 RandomUnitVec = NOZ(RandomPointOnUnitSphere());
+    return Inner(RandomUnitVec, *HemiSphereNormal) > 0 ? RandomUnitVec : -RandomUnitVec;
+}
 
-void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
+
+Internal INLINE bool VecNearZero(v3* V)
+{
+    //Check this later, because it might be different and it doesn't work
+    return  ( ( (f64)V->X * (f64)V->X ) + ( (f64)V->Y * (f64)V->Y ) + ( (f64)V->Z * (f64)V->Z) )  <   ((f64)3.0 * EPSILON64);
+    // return (fabsf(V->X) < EPSILON) && (fabsf(V->Y) < E)
+}
+
+Internal INLINE v3 VecReflectOverNormal(v3* Vec, v3* Normal)
+{
+    return *Vec - (2*Inner(*Vec, *Normal) * *Normal);
+}
+
+Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 {
 
     f32 C = 1.0f/(f32)SamplesPerPixel;
@@ -97,10 +119,12 @@ void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 }
 
 
-#define Tolerance 0.001f
+
+
 #define TMax 100000.0f 
 #define TMin 0.001f
-f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
+
+Internal INLINE f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 {
     f32 T = TMax;
 
@@ -117,7 +141,7 @@ f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
         return T;
     }
     T = -B - sqrtf(Disc);
-    if (T < Tolerance)
+    if (T < 0.0f)
     {
         T = -B + sqrtf(Disc);
     }
@@ -125,10 +149,31 @@ f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
     return T;
 }
 
+Internal INLINE 
+void ScatterDiffuse(material* MaterialPtr, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
+{
+    v3 ScatterDir = HitInfo->Normal + NOZ(RandomPointOnUnitSphere());
+
+    if(VecNearZero(&ScatterDir)) 
+    {
+        ScatterDir = HitInfo->Normal;
+    }
+
+    *ScatteredRay = ray {HitInfo->HitPoint, ScatterDir};
+    *Attentuation = MaterialPtr->AlbedoColor;
+}
+
+Internal INLINE b32 ScatterMetalic(material* MaterialPtr, ray* Ray, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
+{
+    v3 ReflectedRay = VecReflectOverNormal(&Ray->Dir, &HitInfo->Normal);
+    *ScatteredRay   = {HitInfo->HitPoint , ReflectedRay};
+    *Attentuation   = MaterialPtr->AlbedoColor;
+
+    return (Inner(ScatteredRay->Dir, HitInfo->Normal) > 0);
+}
 
 
-
-v3 RayColor(ray* Ray) 
+Internal INLINE v3 RayColor(ray* Ray) 
 {
     v3 Dir = NOZ(Ray->Dir);
     f32 t = 0.5f * ((Dir.Y) + 1.0f);
@@ -141,61 +186,82 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     {
         return {0.0f, 0.0f, 0.0f};
     }
+    u32 MaterialIndex = 0;
 
-    v3 ResultColor = {};
+    // v3 ResultColor = {};
     hit_info HitInfo = {};
     f32 Tclosest = TMax;
     for(u32 SphereIndex = 0; SphereIndex < World->SphereCount; ++SphereIndex)
     {
         sphere* Sphere = &World->Sphere[SphereIndex];
         f32 T = RayIntersectSphere(Ray, Sphere);
-            if( (T > TMin) && (T < Tclosest)) 
+        if( (T > TMin) && (T < Tclosest)) 
+        {
+
+            Tclosest = T;
+
+            HitInfo.MaterialPtr  = &World->Material[Sphere->MaterialIndex]; 
+            HitInfo.HitPoint     = Ray->Dir*T + Ray->Origin;
+            HitInfo.Normal       = (HitInfo.HitPoint - Sphere->Center) / Sphere->R;
+            HitInfo.T            =  T;
+            HitInfo.RayIsOutward = Inner(HitInfo.Normal, Ray->Dir) > 0;
+            if(HitInfo.RayIsOutward)
             {
-
-                Tclosest = T;
-
-                HitInfo.HitPoint = Ray->Dir*T + Ray->Origin;
-                HitInfo.Normal   = (HitInfo.HitPoint - Sphere->Center) / Sphere->R;
-                HitInfo.T        =  T;
-                HitInfo.RayIsOutward = Inner(HitInfo.Normal, Ray->Dir) > 0;
-                if(HitInfo.RayIsOutward) HitInfo.Normal = -HitInfo.Normal;
-
-
-            }
-            
+                HitInfo.Normal = -HitInfo.Normal;  
+            } 
+            MaterialIndex = Sphere->MaterialIndex;
+        }
     }
 
 
-    for(u32 PlaneIndex = 0; PlaneIndex < World->PlaneCount; ++PlaneIndex)
+    switch (MaterialIndex)
     {
-        ;
+        case 1:
+        case 2: //diffuse mateiral
+        {
+            v3 Attentuation;
+            ray ScatteredRay;
+            ScatterDiffuse(HitInfo.MaterialPtr, &HitInfo, &Attentuation, &ScatteredRay);
+            return Hadamard(Attentuation , RayCast(&ScatteredRay, World, RecursionDepth-1)); 
+
+        } break;    
+
+        case 3:
+        case 4: // Metalic Material
+        {
+            v3 Attentuation;
+            ray ScatteredRay;
+
+          if(ScatterMetalic(HitInfo.MaterialPtr, Ray, &HitInfo, &Attentuation, &ScatteredRay))
+          {
+            return Hadamard(Attentuation, RayCast(&ScatteredRay, World, RecursionDepth-1)); 
+          }
+            return {0.0f, 0.0f, 0.0f};
+
+        } break;
+
+        case 0:
+        default:
+        {
+            f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
+            return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
+        } break;
     }
+    // if(Tclosest < TMax)
+    // {
+    //     // should this be for a sphere only?
 
-
-    if(Tclosest < TMax)
-    {
-        // should this be for a sphere only?
-
-        v3 Target = HitInfo.HitPoint + HitInfo.Normal + NOZ(RandomPointOnUnitSphere());
-        ray NewRay = {HitInfo.HitPoint, v3{Target - HitInfo.HitPoint}};
-        return  0.5f *  RayCast(&NewRay ,World, RecursionDepth-1);
-         // return 0.5f * (HitInfo.Normal + 1);
-    }
-    else
-    {
-
-        // ResultColor = RayColor(Ray);
-        
-        f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
-        return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
-       
-
-        // v3 Dir = NOZ(Ray->Dir);
-        // f32 t = 0.5f * Dir.Y + 1.0f;
-        // return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
-    }
-
-    return (ResultColor);
+    //     v3 Target = HitInfo.HitPoint  + HitInfo.Normal + NOZ(RandomPointOnUnitSphere());
+    //     ray NewRay = {HitInfo.HitPoint, v3{Target - HitInfo.HitPoint}};
+    //     return  0.5f *  RayCast(&NewRay ,World, RecursionDepth-1);
+    //      // return 0.5f * (HitInfo.Normal + 1);
+    // }
+    // else
+    // {
+    //     // ResultColor = RayColor(Ray);
+    //     f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
+    //     return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
+    // }
 }
 
 int main(void)
@@ -231,15 +297,41 @@ int main(void)
 
     //--------- Creating WorldObject sphere -------------//
     world World = {};
-    sphere Sphere0  = {0.5f, {0.0f, 0.0f, -1.0f}};
-    sphere Sphere1  = {100.0f, {0, -100.5f , -1.0f}};
+
+
+    material MaterialBackGround = {0.0f, 0.0f, 0.0f};
+
+    material MaterialGround = {0.8f, 0.8f, 0.0f};
+    material MaterialCenter = {0.7f, 0.3f, 0.3f};
+    material MaterialLeft   = {0.8f, 0.8f, 0.8f};
+    material MaterialRight  = {0.8f, 0.6f, 0.2f};
+
+    sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
+    sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
+    sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
+    sphere Sphere4 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
+
     
+    Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere1;
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere0;
+    World.Sphere[World.SphereCount++] = Sphere2;    
 
-    // Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere1;
+    Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere3;
+
+    Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere4;    
+
+    World.Material[0] = MaterialBackGround;
+
+    World.Material[1] = MaterialGround;
+    World.Material[2] = MaterialCenter;
+    World.Material[3] = MaterialLeft  ;
+    World.Material[4] = MaterialRight ;
+
+    World.MaterialCount = 4;
 
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";

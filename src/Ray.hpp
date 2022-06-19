@@ -1,20 +1,29 @@
 #ifndef RAY_HPP
 #define RAY_HPP
 
-#define MAX_SPHERE_COUNT 20
-#define MAX_PLANE_COUNT  20
-
-
+#define MAX_SPHERE_COUNT   20
+#define MAX_PLANE_COUNT    20
+#define MAX_MATERIAL_COUNT 10
 
 #define KB(Value) (1024 * (Value)) 
 #define MB(Value) (1024 * KB(Value))
 #define GB(Value) (1024 * MB(Value))
 
-#define PI32 = 3.141592f
+#define PI32 3.141592f
+#define PI64 3.141592653589793
+
+#define EPSILON32 0.000001f
+#define EPSILON64 0.00000000001
+
+#define ArrayCount(Array) sizeof(Array)/sizeof(Array[0])
 
 #define DegreeToRad(Angle) ((f32) ((Angle) * PI32 / 180.0f)
 
-#define Assert(Expr) if(!(Expr)) { __builtin_trap(); }
+#if DEBUG_BUILD 
+    #define Assert(Expr) if(!(Expr)) { __builtin_trap(); }
+#else 
+    #define Assert(Expr)
+#endif 
 
 #define INLINE __attribute__((always_inline)) inline
 
@@ -33,7 +42,9 @@ typedef uint8_t  u8;
 typedef s32 bool32;
 typedef s32 b32;
 
-typedef float f32;
+typedef float  f32;
+typedef double f64;
+
 
 struct v2
 {
@@ -56,9 +67,18 @@ struct v4
     f32 W;
 };
 
+enum Material_Tpye
+{
+    BACKGROUND = 0,
+    DIFFUSE    = 1,
+    METALIC    = 2,
+};
+
+
 struct material
 {
-    v3 Color;
+    v3 AlbedoColor;
+    f32 Fuzz;
 };
 
 struct ray
@@ -67,11 +87,11 @@ struct ray
     v3 Dir;
 };
 
-
 struct sphere
 {
-    f32 R;
     v3  Center;
+    f32 R;
+    u32 MaterialIndex;
 };
 
 struct plane
@@ -80,14 +100,16 @@ struct plane
     v3  N;
 
 };
-    
 
 struct world
 {
-    sphere Sphere[MAX_SPHERE_COUNT] ;
-    plane  Plane[MAX_PLANE_COUNT]  ;
+    sphere Sphere[MAX_SPHERE_COUNT]      ;
+    plane  Plane[MAX_PLANE_COUNT]        ;
+    material Material[MAX_MATERIAL_COUNT];
+
     u32 SphereCount;
     u32 PlaneCount;
+    u32 MaterialCount;
 };
 
 struct film
@@ -120,8 +142,9 @@ struct hit_info
 {
     v3 HitPoint;
     v3 Normal;
-    f32 T;
-    b32 RayIsOutward;
+    material* MaterialPtr; 
+    f32 T; // ths is paramter of a ray equation given by: Ray(t) =RayOrigin +  (RayDirection * t)
+    b32 RayIsOutward; //if the ray hitted an object, was pointing in the same direction on not relative to the normal of the surface it did hit
 };
 
 
@@ -137,8 +160,6 @@ Internal INLINE v2 operator- (v2&& U, v2& V)
 {
     return {U.X - V.X, U.Y - V.Y};
 }
-
-
 
 Internal INLINE v3 operator+ (v3 U, f32 C)
    {
@@ -237,10 +258,6 @@ v3& operator += (v3& U, v3 V)
         return U;
 }
 
-
 //--------------------- Operator Overloading for vector operations END ------------------//
-
-
-
 
 #endif
