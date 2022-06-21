@@ -49,6 +49,12 @@ Internal INLINE v3 NOZ(v3 U)
     };
 }
 
+Internal INLINE
+f32 MagnitudeSqaured(v3 V)
+{
+    return (V.X * V.X +   V.Y * V.Y + V.Z * V.Z);
+}
+
 Internal INLINE v3 Cross(v3 V1, v3 V2)
 {
     v3 Result = {};
@@ -113,9 +119,23 @@ Internal INLINE bool VecNearZero(v3* V)
     // return (fabsf(V->X) < EPSILON) && (fabsf(V->Y) < E)
 }
 
-Internal INLINE v3 VecReflectOverNormal(v3* Vec, v3* Normal)
+Internal INLINE v3 VecReflectOverNormal(v3 Vec, v3 Normal)
 {
-    return *Vec - (2*Inner(*Vec, *Normal) * *Normal);
+    return Vec - (2*Inner(Vec, Normal) * Normal);
+}
+
+Internal INLINE
+
+v3 Refract(v3 RayDir, v3 Normal, f32 RelativeRefractedIndex) 
+{
+
+    f32 CosAngle  = fminf(Inner(-RayDir, Normal), 1.0f);
+    //caluclate the output ray as a sum of a perpendicular to the surface normal vector + a parallel to the surface normal vector
+
+    v3 PerpendicularToNormal =  RelativeRefractedIndex * (RayDir + (CosAngle * Normal));
+
+    v3 ParallelToNormal      = -sqrtf(fabsf(1.0f - MagnitudeSqaured(PerpendicularToNormal))) * Normal;
+    return (PerpendicularToNormal + ParallelToNormal);
 }
 
 Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
@@ -124,8 +144,8 @@ Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPe
     f32 C = 1.0f/(f32)SamplesPerPixel;
 
     OutStream << (s32) ( ClampValueBetween(sqrtf(Color.X * C), 0.0f, 0.999f) * 255.999f) << ' '
-              << (s32) ( ClampValueBetween(sqrtf(Color.Y * C), 0.0f, 0.999f) * 255.999f) << ' '
-              << (s32) ( ClampValueBetween(sqrtf(Color.Z * C), 0.0f, 0.999f) * 255.999f) << '\n';
+    << (s32) ( ClampValueBetween(sqrtf(Color.Y * C), 0.0f, 0.999f) * 255.999f) << ' '
+    << (s32) ( ClampValueBetween(sqrtf(Color.Z * C), 0.0f, 0.999f) * 255.999f) << '\n';
 
 }
 
@@ -141,7 +161,7 @@ Internal INLINE f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 
     v3 X = Ray->Origin - Sphere->Center;
 
-    f32 B = Inner(X, Ray->Dir);
+    f32 B = Inner(X, NOZ(Ray->Dir));
     f32 C = Inner(X,X) - (Sphere->R * Sphere->R);
 
 
@@ -174,10 +194,26 @@ void ScatterDiffuse(material* MaterialPtr, hit_info* HitInfo, v3* Attentuation, 
     *Attentuation = MaterialPtr->AlbedoColor;
 }
 
-Internal INLINE b32 ScatterMetalic(material* MaterialPtr, ray* Ray, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
+Internal INLINE
+void ScatterDielectric(material* MaterialPtr, ray* Ray, hit_info* HitInfo, ray* ScatteredRay)
 {
-    v3 ReflectedRay = VecReflectOverNormal(&Ray->Dir, &HitInfo->Normal);
-    *ScatteredRay   = {HitInfo->HitPoint , (MaterialPtr->Fuzz * RandomUnitVec()) + ReflectedRay};
+
+   // static int calls = 0;
+
+   f32 RelativeRefractedIndex = !HitInfo->RayIsOutward? (1.0f /MaterialPtr->RefractedIndex) : MaterialPtr->RefractedIndex;
+
+   v3 RefractedRay = Refract(NOZ(Ray->Dir), HitInfo->Normal, RelativeRefractedIndex);
+
+   // std::cerr << calls++ << "\t: " << &RefractedRay <<'\n';
+
+   *ScatteredRay = ray{HitInfo->HitPoint, RefractedRay};
+}
+
+Internal INLINE 
+b32 ScatterMetalic(material* MaterialPtr, ray* Ray, hit_info* HitInfo, v3* Attentuation, ray* ScatteredRay )
+{
+    v3 ReflectedRay = VecReflectOverNormal(NOZ(Ray->Dir), HitInfo->Normal);
+    *ScatteredRay   = {HitInfo->HitPoint ,  (MaterialPtr->Fuzz * RandomUnitVec()) + ReflectedRay};
     *Attentuation   = MaterialPtr->AlbedoColor;
 
     return (Inner(ScatteredRay->Dir, HitInfo->Normal) > 0);
@@ -212,10 +248,10 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
             Tclosest = T;
 
             HitInfo.MaterialPtr  = &World->Material[Sphere->MaterialIndex]; 
-            HitInfo.HitPoint     = Ray->Dir*T + Ray->Origin;
+            HitInfo.HitPoint     = NOZ(Ray->Dir)*T + Ray->Origin;
             HitInfo.Normal       = (HitInfo.HitPoint - Sphere->Center) / Sphere->R;
             HitInfo.T            =  T;
-            HitInfo.RayIsOutward = Inner(HitInfo.Normal, Ray->Dir) > 0;
+            HitInfo.RayIsOutward = Inner(HitInfo.Normal, NOZ(Ray->Dir)) > 0;
             if(HitInfo.RayIsOutward)
             {
                 HitInfo.Normal = -HitInfo.Normal;  
@@ -227,8 +263,9 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
     switch (MaterialIndex)
     {
-        case 1:
-        case 2: //diffuse mateiral
+
+        case 1: //diffuse mateiral
+        // case 2: 
         {
             v3 Attentuation;
             ray ScatteredRay;
@@ -237,16 +274,25 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;    
 
+        case 2:
         case 3:
+        {
+            ray ScatteredRay;
+            ScatterDielectric(HitInfo.MaterialPtr, Ray, &HitInfo, &ScatteredRay);
+            return Hadamard(v3{1.0f, 1.0f, 1.0f}, RayCast(&ScatteredRay, World, RecursionDepth-1)) ; 
+
+        } break;
+
+        // case 3:
         case 4: // Metalic Material
         {
             v3 Attentuation;
             ray ScatteredRay;
 
-          if(ScatterMetalic(HitInfo.MaterialPtr, Ray, &HitInfo, &Attentuation, &ScatteredRay))
-          {
-            return Hadamard(Attentuation, RayCast(&ScatteredRay, World, RecursionDepth-1)); 
-          }
+            if(ScatterMetalic(HitInfo.MaterialPtr, Ray, &HitInfo, &Attentuation, &ScatteredRay))
+            {
+                return Hadamard(Attentuation, RayCast(&ScatteredRay, World, RecursionDepth-1)); 
+            }
             return {0.0f, 0.0f, 0.0f};
 
         } break;
@@ -310,17 +356,19 @@ int main(void)
     world World = {};
 
 
-    material MaterialBackGround = {0.0f, 0.0f, 0.0f, 1.0f};
+    material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f};
 
-    material MaterialGround = {0.8f, 0.8f, 0.0f, 1.0f};
-    material MaterialCenter = {0.7f, 0.3f, 0.3f, 1.0f};
-    material MaterialLeft   = {0.8f, 0.8f, 0.8f, 0.3f};
-    material MaterialRight  = {0.8f, 0.6f, 0.2f, 1.0f};
+    material MaterialGround = {{0.8f, 0.8f, 0.0f}, 1.0f, 1.0f};
+    material MaterialCenter = {{0.7f, 0.3f, 0.3f}, 1.5f, 1.0f}; 
+    material MaterialLeft   = {{0.8f, 0.8f, 0.8f}, 1.5f, 0.3f};
+    material MaterialRight  = {{0.8f, 0.6f, 0.2f}, 1.0f, 1.0f};
 
     sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
     sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
     sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
     sphere Sphere4 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
+
+    /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
 
     
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
@@ -348,10 +396,10 @@ int main(void)
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
 
 
-    u32 SamplesCount = 100;
+    u32 SamplesCount = 2;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
-        std::cerr << (u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
+        // std::cerr << (u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
 
         for(s32 X = 0; X < ImageWidth; ++X)
         {
@@ -366,7 +414,8 @@ int main(void)
                 Ray.Dir = Film.Dist * Camera.DirZ;
                 Ray.Dir += Film.Y * Film.HalfH * Camera.DirY;
                 Ray.Dir += Film.X * Film.HalfW * Camera.DirX;
-                Ray.Dir = NOZ(Ray.Dir);
+                Ray.Dir = Ray.Dir;
+                // Ray.Dir = NOZ(Ray.Dir);
                 //------ super sampling ray tracing----//;
                 Color = Color + RayCast(&Ray, &World, 50);
             }            

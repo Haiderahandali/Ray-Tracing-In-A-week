@@ -78,6 +78,7 @@ enum Material_Tpye
 struct material
 {
     v3 AlbedoColor;
+    f32 RefractedIndex;
     f32 Fuzz;
 };
 
