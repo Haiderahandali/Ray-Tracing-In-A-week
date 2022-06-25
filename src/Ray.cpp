@@ -198,13 +198,11 @@ Internal INLINE
 void ScatterDielectric(material* MaterialPtr, ray* Ray, hit_info* HitInfo, ray* ScatteredRay)
 {
 
-   // static int calls = 0;
 
    f32 RelativeRefractedIndex = !HitInfo->RayIsOutward? (1.0f /MaterialPtr->RefractedIndex) : MaterialPtr->RefractedIndex;
 
    v3 RefractedRay = Refract(NOZ(Ray->Dir), HitInfo->Normal, RelativeRefractedIndex);
 
-   // std::cerr << calls++ << "\t: " << &RefractedRay <<'\n';
 
    *ScatteredRay = ray{HitInfo->HitPoint, RefractedRay};
 }
