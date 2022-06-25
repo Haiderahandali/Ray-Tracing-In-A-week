@@ -172,7 +172,7 @@ Internal INLINE f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
         return T;
     }
     T = -B - sqrtf(Disc);
-    if (T < 0.0f)
+    if (T < TMin)
     {
         T = -B + sqrtf(Disc);
     }
@@ -396,7 +396,7 @@ int main(void)
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
 
 
-    u32 SamplesCount = 2;
+    u32 SamplesCount = 100;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
         if(Y & 0X20)  //every 32 iteration
