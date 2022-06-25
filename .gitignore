@@ -5,3 +5,5 @@
 **/*.dSYM/
 **/*.ppm
 **/Ray
+**/*.txt
+**/.vscode

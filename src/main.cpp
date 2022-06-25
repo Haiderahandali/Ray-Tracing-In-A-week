@@ -399,7 +399,10 @@ int main(void)
     u32 SamplesCount = 2;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
-        // std::cerr << (u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
+        if(Y & 0X20)  //every 32 iteration
+            {
+                std::cerr << "\rFinished: "<<(u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
+            }
 
         for(s32 X = 0; X < ImageWidth; ++X)
         {
