@@ -135,6 +135,8 @@ struct camera
 
     f32 AspectRatio;
     f32 VFOV; // vertical FOV
+    f32 FocusDist;
+    f32 Aperture;
 
 };
 

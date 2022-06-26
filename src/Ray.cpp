@@ -11,33 +11,22 @@ Internal INLINE std::ostream& operator<<(std::ostream& OutStream, v3* V)
     return OutStream << V->X << ' ' << V->Y << ' ' << V->Z;
 }
 
-
-//returns a number [0 , 1)
-Internal INLINE f32 Random(void)
-{
-    return  (f32)std::rand() / ((f32)RAND_MAX + 1.0f);
-}
-
-
-//returns a number between [IntervalMin , IntervalMax)
-Internal INLINE f32 RandomInterval(f32 IntervalMin, f32 IntervalMax)
-{
-    return (IntervalMin + (IntervalMax - IntervalMin)*Random());
-}   
-
-Internal INLINE f32 ClampValueBetween(f32 Value, f32 Min, f32 Max)
+Internal INLINE 
+f32 ClampValueBetween(f32 Value, f32 Min, f32 Max)
 {
     if(Value < Min) return Min;
     if(Value > Max) return Max;
     return Value;
 }
 
-Internal INLINE f32 Inner(v3 U, v3 V)
+Internal INLINE 
+f32 Inner(v3 U, v3 V)
 {
     return (U.X * V.X + U.Y * V.Y +  U.Z * V.Z );
 }
 
-Internal INLINE v3 NOZ(v3 U)
+Internal INLINE 
+v3 NOZ(v3 U)
 {
     f32 Domen = sqrtf(Inner(U,U));
 
@@ -55,7 +44,8 @@ f32 MagnitudeSqaured(v3 V)
     return (V.X * V.X +   V.Y * V.Y + V.Z * V.Z);
 }
 
-Internal INLINE v3 Cross(v3 V1, v3 V2)
+Internal INLINE 
+v3 Cross(v3 V1, v3 V2)
 {
     v3 Result = {};
 
@@ -76,6 +66,20 @@ v3 Hadamard(v3 V, v3 U)
     };
 }
 
+//returns a number [0 , 1)
+Internal INLINE 
+f32 Random(void)
+{
+    return  (f32)std::rand() / ((f32)RAND_MAX + 1.0f);
+}
+
+
+//returns a number between [IntervalMin , IntervalMax)
+Internal INLINE 
+f32 RandomInterval(f32 IntervalMin, f32 IntervalMax)
+{
+    return (IntervalMin + (IntervalMax - IntervalMin)*Random());
+}   
 
 Internal INLINE 
 v3 RandomVec(f32 Min, f32 Max)
@@ -103,16 +107,31 @@ v3 RandomUnitVec(void)
     return NOZ(RandomPointOnUnitSphere());
 }
 
-
-
-Internal INLINE v3 RandomPointOnHemisphere(v3* HemiSphereNormal)
+Internal INLINE 
+v3  RandomPointOnHemisphere(v3* HemiSphereNormal)
 {
     v3 UnitVec = RandomUnitVec();
     return Inner(UnitVec, *HemiSphereNormal) > 0 ? UnitVec : -UnitVec;
 }
 
+Internal INLINE 
+v3 RandomOnUnitDisk(void)
+{
+    v3 Result = {};
+    do
+    {
+        Result = v3{RandomInterval(-1,1), RandomInterval(-1,1), 0.0f};
 
-Internal INLINE bool VecNearZero(v3* V)
+    } while(MagnitudeSqaured(Result) >= 1);
+    return Result;
+}
+
+
+
+
+
+Internal INLINE 
+b32 VecNearZero(v3* V)
 {
     //Check this later, because it might be different and it doesn't work
     return  ( ( (f64)V->X * (f64)V->X ) + ( (f64)V->Y * (f64)V->Y ) + ( (f64)V->Z * (f64)V->Z) )  <   ((f64)3.0 * EPSILON64);
@@ -126,7 +145,6 @@ v3 VecReflectOverNormal(v3 Vec, v3 Normal)
 }
 
 Internal INLINE
-
 v3 Refract(v3 RayDir, v3 Normal, f32 RelativeRefractedIndex) 
 {
 
@@ -138,6 +156,7 @@ v3 Refract(v3 RayDir, v3 Normal, f32 RelativeRefractedIndex)
     v3 ParallelToNormal      = -sqrtf(fabsf(1.0f - MagnitudeSqaured(PerpendicularToNormal))) * Normal;
     return (PerpendicularToNormal + ParallelToNormal);
 }
+
 Internal INLINE
 f32 Reflectance(f32 CosAngle, f32 RelativeRefractedIndex) 
 {
@@ -147,8 +166,8 @@ f32 Reflectance(f32 CosAngle, f32 RelativeRefractedIndex)
     return R0 + (1 - R0) * powf((1 - CosAngle),5);
 }
 
-
-Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
+Internal INLINE 
+void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 {
 
     f32 C = 1.0f/(f32)SamplesPerPixel;
@@ -160,12 +179,11 @@ Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPe
 }
 
 
-
-
 #define TMax 100000.0f 
 #define TMin 0.001f
 
-Internal INLINE f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
+Internal INLINE 
+f32 RayIntersectSphere(ray* Ray, sphere* Sphere)
 {
     f32 T = TMax;
 
@@ -241,7 +259,8 @@ b32 ScatterMetalic(material* MaterialPtr, ray* Ray, hit_info* HitInfo, v3* Atten
 }
 
 
-Internal INLINE v3 RayColor(ray* Ray) 
+Internal INLINE 
+v3 RayColor(ray* Ray) 
 {
     v3 Dir = NOZ(Ray->Dir);
     f32 t = 0.5f * ((Dir.Y) + 1.0f);
@@ -325,21 +344,6 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
             return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
         } break;
     }
-    // if(Tclosest < TMax)
-    // {
-    //     // should this be for a sphere only?
-
-    //     v3 Target = HitInfo.HitPoint  + HitInfo.Normal + NOZ(RandomPointOnUnitSphere());
-    //     ray NewRay = {HitInfo.HitPoint, v3{Target - HitInfo.HitPoint}};
-    //     return  0.5f *  RayCast(&NewRay ,World, RecursionDepth-1);
-    //      // return 0.5f * (HitInfo.Normal + 1);
-    // }
-    // else
-    // {
-    //     // ResultColor = RayColor(Ray);
-    //     f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
-    //     return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
-    // }
 }
 
 int main(void)
@@ -354,7 +358,7 @@ int main(void)
 
     camera Camera = {};
     Camera.AspectRatio = 16.0f / 9.0f;
-    Camera.VFOV = DegreeToRad(90.0f);
+    Camera.VFOV = DegreeToRad(20.0f); // 
     Camera.Origin = {-2.0f, 2.0f, 1.0f};
 
     v3 LookAt = {0.0f, 0.0f, -1.0f};
@@ -391,9 +395,8 @@ int main(void)
     sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
     sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
     sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
-    sphere Sphere4 {{-1.0f,    0.0f, -1.0f},  -0.4f, 3};
+    sphere Sphere4 {{-1.0f,    0.0f, -1.0f}, -0.45f, 3};
     sphere Sphere5 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
-
 
 
     /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
