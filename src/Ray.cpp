@@ -43,6 +43,11 @@ f32 MagnitudeSqaured(v3 V)
 {
     return (V.X * V.X +   V.Y * V.Y + V.Z * V.Z);
 }
+Internal INLINE 
+f32 Vec3Length(v3 V)
+{
+    return sqrtf(MagnitudeSqaured(V));
+}
 
 Internal INLINE 
 v3 Cross(v3 V1, v3 V2)
@@ -78,13 +83,19 @@ f32 Random(void)
 Internal INLINE 
 f32 RandomInterval(f32 IntervalMin, f32 IntervalMax)
 {
-    return (IntervalMin + (IntervalMax - IntervalMin)*Random());
+    return (IntervalMin + (IntervalMax - IntervalMin) * Random());
 }   
 
 Internal INLINE 
-v3 RandomVec(f32 Min, f32 Max)
+v3 RandomVecBetweenInterval(f32 Min, f32 Max)
 {
     return {RandomInterval(Min,Max), RandomInterval(Min,Max), RandomInterval(Min,Max)};
+}
+
+Internal INLINE 
+v3 RandomVec(void)
+{
+    return {Random(), Random(),Random()};
 }
 
 
@@ -125,10 +136,6 @@ v3 RandomOnUnitDisk(void)
     } while(MagnitudeSqaured(Result) >= 1);
     return Result;
 }
-
-
-
-
 
 Internal INLINE 
 b32 VecNearZero(v3* V)
@@ -301,11 +308,10 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     }
 
 
-    switch (MaterialIndex)
+    switch (World->Material[MaterialIndex].Type)
     {
 
-        case 1: //diffuse mateiral
-        case 2: 
+        case MaterialDiffuse:
         {
             v3 Attentuation;
             ray ScatteredRay;
@@ -315,7 +321,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
         } break;    
 
 
-        case 3:
+        case MaterialDielectric:
         {
             ray ScatteredRay;
             ScatterDielectric(HitInfo.MaterialPtr, Ray, &HitInfo, &ScatteredRay);
@@ -323,8 +329,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;
 
-        // case 3:
-        case 4: // Metalic Material
+        case MaterialMetal: 
         {
             v3 Attentuation;
             ray ScatteredRay;
@@ -337,7 +342,6 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;
 
-        case 0:
         default:
         {
             f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
@@ -348,80 +352,113 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
 world CreateWorld(void)
 {
-        //--------- Creating WorldObject sphere -------------//
+
     world World = {};
-
-    material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f};
-
-    material MaterialGround = {{0.8f, 0.8f, 0.0f}, 1.0f, 1.0f};
-    material MaterialCenter = {{0.1f, 0.2f, 0.5f}, 1.5f, 1.0f}; 
-    material MaterialLeft   = {{0.8f, 0.8f, 0.8f}, 1.5f, 0.3f};
-    material MaterialRight  = {{0.8f, 0.6f, 0.2f}, 1.0f, 0.0f};
-
-    sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
-    sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
-    sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
-    sphere Sphere4 {{-1.0f,    0.0f, -1.0f}, -0.45f, 3};
-    sphere Sphere5 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
-
-
-    /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
-    Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere1;
-
-    Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere2;    
-
-    Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere3;
-
-    Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere4;    
-
-    Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere5;    
-
-
+    material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 0.0f, BackGround};
     World.Material[0] = MaterialBackGround;
 
-    World.Material[1] = MaterialGround;
-    World.Material[2] = MaterialCenter;
-    World.Material[3] = MaterialLeft  ;
-    World.Material[4] = MaterialLeft  ;
-    World.Material[4] = MaterialRight ;
 
-    World.MaterialCount = 4;
-    return (World);
+    material MaterialGround = {{0.5f, 0.5f, 0.5f}, 1.0f, 0.0f, MaterialDiffuse };
+    World.Material[1] = MaterialGround;
+    sphere Sphere1          = {{0.0f, -1000.0f, 0.0f}, 1000.0f, 1};
+    World.Sphere[World.SphereCount++] = Sphere1;
+
+    u32 SphereIndex = 1; // World.MaterialCount = 2
+    for (int a = -11; a < 11; a++) 
+    {
+        for (int b = -11; b < 11; b++) 
+        {
+            f32 Mat = Random(); // material randomly
+            v3 Center = {a + 0.9f * Random(), 0.2f, b + 0.9f * Random()};
+
+            if ( Vec3Length(Center -  v3{4.0f, 0.2f, 0.0f}) > 0.9f) 
+            {
+                material SphereMaterial;
+
+                if (Mat < 0.8) 
+                {
+                    // diffuse
+                    v3 Albedo = Hadamard(RandomVec() , RandomVec());
+                    SphereMaterial = material{Albedo, 1.0f, 0.0f, MaterialDiffuse};
+                    World.Material[SphereIndex] = SphereMaterial;
+                    World.Sphere[World.SphereCount++] = {Center, 0.2f, SphereIndex};
+                    ++SphereIndex; 
+                } 
+                else if (Mat < 0.95) 
+                {
+                    // metal
+                    v3 Albedo = RandomVecBetweenInterval(0.5f, 1.0f);
+                    f32 Fuzz = RandomInterval(0.0f, 0.5f);
+                    SphereMaterial = material{Albedo, 1.0f, Fuzz, MaterialMetal};
+
+                    World.Material[SphereIndex] = SphereMaterial;
+                    World.Sphere[World.SphereCount++] = {Center, 0.2f, SphereIndex};
+                    ++SphereIndex; 
+                    
+                } 
+                else 
+                {
+                    // glass
+                    SphereMaterial = {{1.0f, 1.0f, 1.0f}, 1.5f, 0.0f, MaterialDielectric};
+
+                    World.Material[SphereIndex] = SphereMaterial;
+                    World.Sphere[World.SphereCount++] = {Center, 0.2f, SphereIndex};
+                    ++SphereIndex; 
+                }
+            }
+        }
+    }
+
+
+
+    material Material1 = {{1.0f, 1.0f, 1.0f}, 1.5f, 1.0f, MaterialDielectric};
+    World.Material[SphereIndex] = Material1;
+    World.Sphere[World.SphereCount++] = {{0.0f, 1.0f, 0.0f}, 1.0f, SphereIndex};
+    ++SphereIndex; 
+    
+
+    material Material2 = {{0.4f, 0.2f, 0.1f}, 1.0f, 1.0f, MaterialDiffuse};
+    World.Material[SphereIndex] = Material2;
+    World.Sphere[World.SphereCount++] = {{-4.0f, 1.0f, 0.0f}, 1.0f, SphereIndex};
+    ++SphereIndex; 
+
+    material Material3 = {{0.7f, 0.6f, 0.5f}, 1.0f, 0.0f, MaterialMetal};
+    World.Material[SphereIndex] = Material3;
+    World.Sphere[World.SphereCount++] = {{4.0f, 1.0f, 0.0f}, 1.0, SphereIndex};
+
+    
+    return World;
 }
 
-int main(void)
-{
+    int main(void)
+    {
 
 
     //-----------Creating The World---------//
-    world World = CreateWorld();
+        world World = CreateWorld();
 
 
     //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
     //------------- View Port and Camera -------------//
-    v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
+        v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
 
     camera Camera = {};
-    Camera.AspectRatio = 16.0f / 9.0f;
+    Camera.AspectRatio = 3.0f / 2.0f;
+    Camera.Aperture = 0.1f;
     Camera.VFOV = DegreeToRad(20.0f); // 
-    Camera.Origin = {3.0f, 3.0f, 2.0f};
-    Camera.Aperture = 2.0f;
-    f32 LensRadius   = (Camera.Aperture/2.0f);
     
-    v3 LookAt = {0.0f, 0.0f, -1.0f};
-    Camera.FocusDist = sqrtf(MagnitudeSqaured(LookAt - Camera.Origin));
+    Camera.LensRadius = (Camera.Aperture/2.0f);
+    
+    
+    
 
+    v3 LookAt = {0.0f, 0.0f, 0.0f};
+    Camera.Origin = {13.0f, 2.0f, 3.0f};
     Camera.DirZ = NOZ(LookAt - Camera.Origin);
     Camera.DirX = NOZ(Cross(Camera.DirZ, WorldUpVector));
     Camera.DirY = NOZ(Cross(Camera.DirX, Camera.DirZ));
 
-    s32 ImageWidth  = 400;
-    s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
+    Camera.FocusDist = 10.0f;
 
     //----------- View Port ----------//
     f32 H       = tanf(Camera.VFOV/2.0f);
@@ -433,11 +470,18 @@ int main(void)
     
     Film.Dist = 1;
 
+
+//------------- Image ------------//
+    s32 ImageWidth  = 1200;
+    s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
+
+
+
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
 
 
-    u32 SamplesCount = 100;
+    u32 SamplesCount = 500;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
         std::cerr << "\rScanlines remaining: " << Y << ' ' << std::flush;
@@ -450,17 +494,8 @@ int main(void)
                 Film.Y = (2 * ((f32) Y + Random()) / (f32) (ImageHeight - 1) ) - 1;
                 Film.X = (2 * ((f32) X + Random()) / (f32) (ImageWidth  - 1) ) - 1;
 
-                // ray Ray = {};
-                // Ray.Origin = Camera.Origin;
-                // Ray.Dir = Film.Dist * Camera.DirZ;
-                // Ray.Dir += Film.Y * Film.HalfH * Camera.DirY;
-                // Ray.Dir += Film.X * Film.HalfW * Camera.DirX;
-                // Ray.Dir = Ray.Dir;
-
-
                 ray Ray = {};
-                
-                v3 RandomOnLens  = LensRadius * RandomOnUnitDisk(); //the a point on the camera lens, Lens Radius = Aperture/2
+                v3 RandomOnLens  = Camera.LensRadius * RandomOnUnitDisk(); // a point on the camera lens, Lens Radius = Aperture/2
                 v3 RayOffset     = (RandomOnLens.X * Camera.DirX) + (RandomOnLens.Y * Camera.DirY);
                 Ray.Origin       = Camera.Origin + RayOffset;
 

@@ -2,7 +2,7 @@
 DIR=$(pwd)
 
 COMPILER="clang++"
-CFLAGS="-Wall -Wextra -Wconversion -Wshadow -Wpedantic -std=c++17 -g -O0 -fno-exceptions"
+CFLAGS="-Wall -Wextra -Wconversion -Wshadow -Wpedantic -std=c++17 -O3 -fno-exceptions"
 OFFWARNINGS="-Wno-unused-function -Wno-missing-braces -Wno-gnu-anonymous-struct"
 COMPILER_MACROS_DEFINITIONS="-DDEBUG_BUILD=1"
 

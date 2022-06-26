@@ -1,9 +1,9 @@
 #ifndef RAY_HPP
 #define RAY_HPP
 
-#define MAX_SPHERE_COUNT   20
-#define MAX_PLANE_COUNT    20
-#define MAX_MATERIAL_COUNT 10
+#define MAX_SPHERE_COUNT   500
+#define MAX_PLANE_COUNT    10
+#define MAX_MATERIAL_COUNT 500
 
 #define KB(Value) (1024 * (Value)) 
 #define MB(Value) (1024 * KB(Value))
@@ -75,11 +75,19 @@ enum Material_Tpye
 };
 
 
+enum Material_Type
+{ 
+            BackGround = 0,
+    MaterialDiffuse    = 1,
+    MaterialDielectric = 2,
+    MaterialMetal      = 3,
+};
 struct material
 {
     v3 AlbedoColor;
     f32 RefractedIndex;
     f32 Fuzz;
+    Material_Type Type;
 };
 
 struct ray
@@ -137,6 +145,7 @@ struct camera
     f32 VFOV; // vertical FOV
     f32 FocusDist;
     f32 Aperture;
+    f32 LensRadius;
 
 };
 
