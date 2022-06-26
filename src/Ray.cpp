@@ -25,6 +25,20 @@ f32 Inner(v3 U, v3 V)
     return (U.X * V.X + U.Y * V.Y +  U.Z * V.Z );
 }
 
+
+Internal INLINE
+f32 MagnitudeSqaured(v3 V)
+{
+    return (V.X * V.X +   V.Y * V.Y + V.Z * V.Z);
+}
+
+Internal INLINE 
+f32 Vec3Length(v3 V)
+{
+    return sqrtf(MagnitudeSqaured(V));
+}
+
+
 Internal INLINE 
 v3 NOZ(v3 U)
 {
@@ -38,16 +52,6 @@ v3 NOZ(v3 U)
     };
 }
 
-Internal INLINE
-f32 MagnitudeSqaured(v3 V)
-{
-    return (V.X * V.X +   V.Y * V.Y + V.Z * V.Z);
-}
-Internal INLINE 
-f32 Vec3Length(v3 V)
-{
-    return sqrtf(MagnitudeSqaured(V));
-}
 
 Internal INLINE 
 v3 Cross(v3 V1, v3 V2)
@@ -102,7 +106,7 @@ v3 RandomVec(void)
 Internal INLINE 
 v3 RandomPointOnUnitSphere(void)
 {
-    v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1}; 
+    v3 Point = {2*Random() - 1, 2*Random() - 1, 2*Random() - 1}; //this givs a random point in a cube with sides from -1 to 1
     while(((Point.X * Point.X + Point.Y * Point.Y + Point.Z * Point.Z) >= 1))
     {
 
@@ -282,7 +286,6 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     }
     u32 MaterialIndex = 0;
 
-    // v3 ResultColor = {};
     hit_info HitInfo = {};
     f32 Tclosest = TMax;
     for(u32 SphereIndex = 0; SphereIndex < World->SphereCount; ++SphereIndex)
@@ -310,7 +313,6 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
     switch (World->Material[MaterialIndex].Type)
     {
-
         case MaterialDiffuse:
         {
             v3 Attentuation;
@@ -344,6 +346,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         default:
         {
+            //-----Back Ground Color-------//
             f32 t = 0.5f * (NOZ(Ray->Dir).Y + 1.0f) ;
             return ((1.0f-t)* v3{1.0f, 1.0f, 1.0f}) + (t * v3{0.5f, 0.7f, 1.0f});
         } break;
@@ -430,28 +433,26 @@ world CreateWorld(void)
     return World;
 }
 
-    int main(void)
+
+int main(void)
     {
 
-
     //-----------Creating The World---------//
-        world World = CreateWorld();
+    world World = CreateWorld();
 
 
     //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
     //------------- View Port and Camera -------------//
-        v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
+    v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
 
     camera Camera = {};
     Camera.AspectRatio = 3.0f / 2.0f;
     Camera.Aperture = 0.1f;
-    Camera.VFOV = DegreeToRad(20.0f); // 
+    Camera.VFOV = DegreeToRad(20.0f); 
     
     Camera.LensRadius = (Camera.Aperture/2.0f);
     
     
-    
-
     v3 LookAt = {0.0f, 0.0f, 0.0f};
     Camera.Origin = {13.0f, 2.0f, 3.0f};
     Camera.DirZ = NOZ(LookAt - Camera.Origin);
@@ -475,11 +476,8 @@ world CreateWorld(void)
     s32 ImageWidth  = 1200;
     s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
 
-
-
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
-
 
     u32 SamplesCount = 500;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
@@ -498,7 +496,6 @@ world CreateWorld(void)
                 v3 RandomOnLens  = Camera.LensRadius * RandomOnUnitDisk(); // a point on the camera lens, Lens Radius = Aperture/2
                 v3 RayOffset     = (RandomOnLens.X * Camera.DirX) + (RandomOnLens.Y * Camera.DirY);
                 Ray.Origin       = Camera.Origin + RayOffset;
-
 
                 Ray.Dir = Camera.FocusDist * Camera.DirZ;
                 Ray.Dir += Film.Y * Film.HalfH * Camera.DirY * Camera.FocusDist;
