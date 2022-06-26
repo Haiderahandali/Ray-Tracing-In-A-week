@@ -346,43 +346,9 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     }
 }
 
-int main(void)
+world CreateWorld(void)
 {
-
-
-    //------------- View Port and Camera -------------//
-
-    v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
-
-    //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
-
-    camera Camera = {};
-    Camera.AspectRatio = 16.0f / 9.0f;
-    Camera.VFOV = DegreeToRad(20.0f); // 
-    Camera.Origin = {-2.0f, 2.0f, 1.0f};
-
-    v3 LookAt = {0.0f, 0.0f, -1.0f};
-
-    Camera.DirZ = NOZ(LookAt - Camera.Origin);
-    Camera.DirX = NOZ(Cross(Camera.DirZ, WorldUpVector));
-    Camera.DirY = NOZ(Cross(Camera.DirX, Camera.DirZ));
-
-    s32 ImageWidth  = 400;
-    s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
-
-    //----------- View Port ----------//
-    f32 H       = tanf(Camera.VFOV/2.0f);
-    film Film   = {};
-    Film.H      = 2 * H;
-    Film.W      = Film.H * Camera.AspectRatio;
-    Film.HalfW  = Film.W * 0.5f ;
-    Film.HalfH  = Film.H * 0.5f ;
-    
-    Film.Dist = 1;
-    //---- camera is facing the negative Z Axis ----//
-
-
-    //--------- Creating WorldObject sphere -------------//
+        //--------- Creating WorldObject sphere -------------//
     world World = {};
 
     material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f};
@@ -425,6 +391,47 @@ int main(void)
     World.Material[4] = MaterialRight ;
 
     World.MaterialCount = 4;
+    return (World);
+}
+
+int main(void)
+{
+
+
+    //-----------Creating The World---------//
+    world World = CreateWorld();
+
+
+    //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
+    //------------- View Port and Camera -------------//
+    v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
+
+    camera Camera = {};
+    Camera.AspectRatio = 16.0f / 9.0f;
+    Camera.VFOV = DegreeToRad(20.0f); // 
+    Camera.Origin = {3.0f, 3.0f, 2.0f};
+    Camera.Aperture = 2.0f;
+    f32 LensRadius   = (Camera.Aperture/2.0f);
+    
+    v3 LookAt = {0.0f, 0.0f, -1.0f};
+    Camera.FocusDist = sqrtf(MagnitudeSqaured(LookAt - Camera.Origin));
+
+    Camera.DirZ = NOZ(LookAt - Camera.Origin);
+    Camera.DirX = NOZ(Cross(Camera.DirZ, WorldUpVector));
+    Camera.DirY = NOZ(Cross(Camera.DirX, Camera.DirZ));
+
+    s32 ImageWidth  = 400;
+    s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
+
+    //----------- View Port ----------//
+    f32 H       = tanf(Camera.VFOV/2.0f);
+    film Film   = {};
+    Film.H      = 2 * H;
+    Film.W      = Film.H * Camera.AspectRatio;
+    Film.HalfW  = Film.W * 0.5f ;
+    Film.HalfH  = Film.H * 0.5f ;
+    
+    Film.Dist = 1;
 
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
@@ -433,10 +440,6 @@ int main(void)
     u32 SamplesCount = 100;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
-        // if(Y & 0X20)  //every 32 iteration
-        //     {
-        //         std::cerr << "\rFinished: "<<(u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
-        //     }
         std::cerr << "\rScanlines remaining: " << Y << ' ' << std::flush;
 
         for(s32 X = 0; X < ImageWidth; ++X)
@@ -447,14 +450,26 @@ int main(void)
                 Film.Y = (2 * ((f32) Y + Random()) / (f32) (ImageHeight - 1) ) - 1;
                 Film.X = (2 * ((f32) X + Random()) / (f32) (ImageWidth  - 1) ) - 1;
 
+                // ray Ray = {};
+                // Ray.Origin = Camera.Origin;
+                // Ray.Dir = Film.Dist * Camera.DirZ;
+                // Ray.Dir += Film.Y * Film.HalfH * Camera.DirY;
+                // Ray.Dir += Film.X * Film.HalfW * Camera.DirX;
+                // Ray.Dir = Ray.Dir;
+
+
                 ray Ray = {};
-                Ray.Origin = Camera.Origin;
-                Ray.Dir = Film.Dist * Camera.DirZ;
-                Ray.Dir += Film.Y * Film.HalfH * Camera.DirY;
-                Ray.Dir += Film.X * Film.HalfW * Camera.DirX;
-                Ray.Dir = Ray.Dir;
-                // Ray.Dir = NOZ(Ray.Dir);
-                //------ super sampling ray tracing----//;
+                
+                v3 RandomOnLens  = LensRadius * RandomOnUnitDisk(); //the a point on the camera lens, Lens Radius = Aperture/2
+                v3 RayOffset     = (RandomOnLens.X * Camera.DirX) + (RandomOnLens.Y * Camera.DirY);
+                Ray.Origin       = Camera.Origin + RayOffset;
+
+
+                Ray.Dir = Camera.FocusDist * Camera.DirZ;
+                Ray.Dir += Film.Y * Film.HalfH * Camera.DirY * Camera.FocusDist;
+                Ray.Dir += Film.X * Film.HalfW * Camera.DirX * Camera.FocusDist;
+                Ray.Dir = Ray.Dir - RayOffset;
+
                 Color = Color + RayCast(&Ray, &World, 50);
             }            
             
