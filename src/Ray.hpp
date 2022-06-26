@@ -17,7 +17,7 @@
 
 #define ArrayCount(Array) sizeof(Array)/sizeof(Array[0])
 
-#define DegreeToRad(Angle) ((f32) ((Angle) * PI32 / 180.0f)
+#define DegreeToRad(Angle) ((f32) ((Angle) * PI32 / 180.0f))
 
 #if DEBUG_BUILD 
     #define Assert(Expr) if(!(Expr)) { __builtin_trap(); }
@@ -134,7 +134,7 @@ struct camera
     v3 DirZ;
 
     f32 AspectRatio;
-    f32 FOV;
+    f32 VFOV; // vertical FOV
 
 };
 

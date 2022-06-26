@@ -8,5 +8,5 @@ COMPILER_MACROS_DEFINITIONS="-DDEBUG_BUILD=1"
 
 
 SRC="$DIR/src/*.cpp"
-${COMPILER} ${SRC} ${CFLAGS} ${OFFWARNINGS} ${COMPILER_MACROS_DEFINITIONS} -o Ray && ./Ray > image.ppm && open ./image.ppm && rm ./Ray
+${COMPILER} ${SRC} ${CFLAGS} ${OFFWARNINGS} ${COMPILER_MACROS_DEFINITIONS} -o Ray && ./Ray > MyImage.ppm && open ./MyImage.ppm && rm ./Ray
 

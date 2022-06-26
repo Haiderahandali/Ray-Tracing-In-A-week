@@ -119,7 +119,8 @@ Internal INLINE bool VecNearZero(v3* V)
     // return (fabsf(V->X) < EPSILON) && (fabsf(V->Y) < E)
 }
 
-Internal INLINE v3 VecReflectOverNormal(v3 Vec, v3 Normal)
+Internal INLINE
+v3 VecReflectOverNormal(v3 Vec, v3 Normal)
 {
     return Vec - (2*Inner(Vec, Normal) * Normal);
 }
@@ -137,6 +138,15 @@ v3 Refract(v3 RayDir, v3 Normal, f32 RelativeRefractedIndex)
     v3 ParallelToNormal      = -sqrtf(fabsf(1.0f - MagnitudeSqaured(PerpendicularToNormal))) * Normal;
     return (PerpendicularToNormal + ParallelToNormal);
 }
+Internal INLINE
+f32 Reflectance(f32 CosAngle, f32 RelativeRefractedIndex) 
+{
+    // Use Schlick's approximation for reflectance.
+    f32 R0 = (1 - RelativeRefractedIndex) / (1+ RelativeRefractedIndex);
+    R0 = R0*R0;
+    return R0 + (1 - R0) * powf((1 - CosAngle),5);
+}
+
 
 Internal INLINE void WriteColor(std::ostream& OutStream, v3 Color, u32 SamplesPerPixel)
 {
@@ -198,13 +208,26 @@ Internal INLINE
 void ScatterDielectric(material* MaterialPtr, ray* Ray, hit_info* HitInfo, ray* ScatteredRay)
 {
 
+    f32 RelativeRefractedIndex = !HitInfo->RayIsOutward? (1.0f /MaterialPtr->RefractedIndex) : MaterialPtr->RefractedIndex;
+    v3 NOZDir = NOZ(Ray->Dir); 
 
-   f32 RelativeRefractedIndex = !HitInfo->RayIsOutward? (1.0f /MaterialPtr->RefractedIndex) : MaterialPtr->RefractedIndex;
+    f32 CosAngle = Inner(-NOZDir, HitInfo->Normal);
+    f32 SinAngle = sqrtf( 1 - (CosAngle * CosAngle));
 
-   v3 RefractedRay = Refract(NOZ(Ray->Dir), HitInfo->Normal, RelativeRefractedIndex);
 
+    v3 RefractedRay;
+    if((SinAngle * RelativeRefractedIndex > 1.0f) || Reflectance(CosAngle, RelativeRefractedIndex) > Random())
+    {
+    //Total Internal Refraction case
+        RefractedRay= VecReflectOverNormal(NOZDir, HitInfo->Normal);
+    }
+    else
+    {
+    //Normal Refraction Case
+        RefractedRay= Refract(NOZDir, HitInfo->Normal, RelativeRefractedIndex);
+    }
 
-   *ScatteredRay = ray{HitInfo->HitPoint, RefractedRay};
+    *ScatteredRay = ray{HitInfo->HitPoint, RefractedRay};
 }
 
 Internal INLINE 
@@ -263,7 +286,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
     {
 
         case 1: //diffuse mateiral
-        // case 2: 
+        case 2: 
         {
             v3 Attentuation;
             ray ScatteredRay;
@@ -272,8 +295,8 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;    
 
-        case 2:
-        case 3:
+
+        case 3: //Dielectric Material 
         {
             ray ScatteredRay;
             ScatterDielectric(HitInfo.MaterialPtr, Ray, &HitInfo, &ScatteredRay);
@@ -281,7 +304,6 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;
 
-        // case 3:
         case 4: // Metalic Material
         {
             v3 Attentuation;
@@ -322,17 +344,19 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 int main(void)
 {
 
-
     //------------- View Port and Camera -------------//
 
     v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
 
     //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
-
     camera Camera = {};
     Camera.AspectRatio = 16.0f / 9.0f;
-    Camera.Origin = {0.0f, 0.0f, 0.0f};
-    Camera.DirZ = NOZ({0.0f ,0.0f , -1.0f});
+    Camera.VFOV = DegreeToRad(90.0f);
+
+    Camera.Origin = {-0.0f, 0.0f, 0.0f};
+    v3 LookAt = {0.0f ,0.0f, -1.0f};
+
+    Camera.DirZ = NOZ(LookAt - Camera.Origin);
     Camera.DirX = NOZ(Cross(Camera.DirZ, WorldUpVector));
     Camera.DirY = NOZ(Cross(Camera.DirX, Camera.DirZ));
 
@@ -340,8 +364,9 @@ int main(void)
     s32 ImageHeight = (s32) ( (f32)ImageWidth / Camera.AspectRatio ) ;
 
     //----------- View Port ----------//
+    f32 H       = tanf(Camera.VFOV/2.0f);
     film Film   = {};
-    Film.H      = 2;
+    Film.H      = 2 * H;
     Film.W      = Film.H * Camera.AspectRatio;
     Film.HalfW  = Film.W * 0.5f ;
     Film.HalfH  = Film.H * 0.5f ;
@@ -351,20 +376,22 @@ int main(void)
 
 
     //--------- Creating WorldObject sphere -------------//
-    world World = {};
+    world World = {};    
 
 
+    
     material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f};
 
     material MaterialGround = {{0.8f, 0.8f, 0.0f}, 1.0f, 1.0f};
-    material MaterialCenter = {{0.7f, 0.3f, 0.3f}, 1.5f, 1.0f}; 
+    material MaterialCenter = {{0.1f, 0.2f, 0.5f}, 1.0f, 1.0f}; 
     material MaterialLeft   = {{0.8f, 0.8f, 0.8f}, 1.5f, 0.3f};
     material MaterialRight  = {{0.8f, 0.6f, 0.2f}, 1.0f, 1.0f};
 
     sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
     sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
     sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
-    sphere Sphere4 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
+    sphere Sphere4 {{-1.0f,    0.0f, -1.0f},   0.4f, 3};
+    sphere Sphere5 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
 
     /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
 
@@ -376,19 +403,24 @@ int main(void)
     World.Sphere[World.SphereCount++] = Sphere2;    
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere3;
+    World.Sphere[World.SphereCount++] = Sphere3;    
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
     World.Sphere[World.SphereCount++] = Sphere4;    
 
-    World.Material[0] = MaterialBackGround;
+    Assert(World.SphereCount < MAX_SPHERE_COUNT);
+    World.Sphere[World.SphereCount++] = Sphere5;    
 
-    World.Material[1] = MaterialGround;
-    World.Material[2] = MaterialCenter;
-    World.Material[3] = MaterialLeft  ;
-    World.Material[4] = MaterialRight ;
 
-    World.MaterialCount = 4;
+
+    World.Material[0] = MaterialBackGround;     World.MaterialCount++;
+    World.Material[1] = MaterialGround;         World.MaterialCount++;
+    World.Material[2] = MaterialCenter;         World.MaterialCount++;
+    World.Material[3] = MaterialLeft;           World.MaterialCount++;
+    World.Material[4] = MaterialRight;          World.MaterialCount++;
+
+
+     
 
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
@@ -397,10 +429,11 @@ int main(void)
     u32 SamplesCount = 100;
     for(s32 Y = ImageHeight - 1; Y >= 0; --Y)
     {
-        if(Y & 0X20)  //every 32 iteration
-            {
-                std::cerr << "\rFinished: "<<(u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
-            }
+        // if(Y & 0X20)  //every 32 iteration
+        //     {
+        //         std::cerr << "\rFinished: "<<(u32)(100 * (1- ((f32)Y/ (f32)(ImageHeight -1)))) << "%" << ' ' << std::flush;
+        //     }
+        std::cerr << "\rScanlines remaining: " << Y << ' ' << std::flush;
 
         for(s32 X = 0; X < ImageWidth; ++X)
         {
