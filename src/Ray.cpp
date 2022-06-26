@@ -296,7 +296,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
         } break;    
 
 
-        case 3: //Dielectric Material 
+        case 3:
         {
             ray ScatteredRay;
             ScatterDielectric(HitInfo.MaterialPtr, Ray, &HitInfo, &ScatteredRay);
@@ -304,6 +304,7 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 
         } break;
 
+        // case 3:
         case 4: // Metalic Material
         {
             v3 Attentuation;
@@ -344,17 +345,19 @@ v3 RayCast(ray* Ray, world* World, s32 RecursionDepth)
 int main(void)
 {
 
+
     //------------- View Port and Camera -------------//
 
     v3 WorldUpVector = {0.0f, 1.0f, 0.0f};
 
     //Right Hand Coordinates System, Camera Pointing in the Negative Z-Axis
+
     camera Camera = {};
     Camera.AspectRatio = 16.0f / 9.0f;
     Camera.VFOV = DegreeToRad(90.0f);
+    Camera.Origin = {-2.0f, 2.0f, 1.0f};
 
-    Camera.Origin = {-0.0f, 0.0f, 0.0f};
-    v3 LookAt = {0.0f ,0.0f, -1.0f};
+    v3 LookAt = {0.0f, 0.0f, -1.0f};
 
     Camera.DirZ = NOZ(LookAt - Camera.Origin);
     Camera.DirX = NOZ(Cross(Camera.DirZ, WorldUpVector));
@@ -376,26 +379,24 @@ int main(void)
 
 
     //--------- Creating WorldObject sphere -------------//
-    world World = {};    
+    world World = {};
 
-
-    
     material MaterialBackGround = {{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f};
 
     material MaterialGround = {{0.8f, 0.8f, 0.0f}, 1.0f, 1.0f};
-    material MaterialCenter = {{0.1f, 0.2f, 0.5f}, 1.0f, 1.0f}; 
+    material MaterialCenter = {{0.1f, 0.2f, 0.5f}, 1.5f, 1.0f}; 
     material MaterialLeft   = {{0.8f, 0.8f, 0.8f}, 1.5f, 0.3f};
-    material MaterialRight  = {{0.8f, 0.6f, 0.2f}, 1.0f, 1.0f};
+    material MaterialRight  = {{0.8f, 0.6f, 0.2f}, 1.0f, 0.0f};
 
     sphere Sphere1 {{ 0.0f, -100.5f, -1.0f}, 100.0f, 1};
     sphere Sphere2 {{ 0.0f,    0.0f, -1.0f},   0.5f, 2};
     sphere Sphere3 {{-1.0f,    0.0f, -1.0f},   0.5f, 3};
-    sphere Sphere4 {{-1.0f,    0.0f, -1.0f},   0.4f, 3};
+    sphere Sphere4 {{-1.0f,    0.0f, -1.0f},  -0.4f, 3};
     sphere Sphere5 {{ 1.0f,    0.0f, -1.0f},   0.5f, 4};
 
-    /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
 
-    
+
+    /*Material Index from 1-2 are diffuse, 3-4 are metailic, 5 is*/
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
     World.Sphere[World.SphereCount++] = Sphere1;
 
@@ -403,7 +404,7 @@ int main(void)
     World.Sphere[World.SphereCount++] = Sphere2;    
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
-    World.Sphere[World.SphereCount++] = Sphere3;    
+    World.Sphere[World.SphereCount++] = Sphere3;
 
     Assert(World.SphereCount < MAX_SPHERE_COUNT);
     World.Sphere[World.SphereCount++] = Sphere4;    
@@ -412,15 +413,15 @@ int main(void)
     World.Sphere[World.SphereCount++] = Sphere5;    
 
 
+    World.Material[0] = MaterialBackGround;
 
-    World.Material[0] = MaterialBackGround;     World.MaterialCount++;
-    World.Material[1] = MaterialGround;         World.MaterialCount++;
-    World.Material[2] = MaterialCenter;         World.MaterialCount++;
-    World.Material[3] = MaterialLeft;           World.MaterialCount++;
-    World.Material[4] = MaterialRight;          World.MaterialCount++;
+    World.Material[1] = MaterialGround;
+    World.Material[2] = MaterialCenter;
+    World.Material[3] = MaterialLeft  ;
+    World.Material[4] = MaterialLeft  ;
+    World.Material[4] = MaterialRight ;
 
-
-     
+    World.MaterialCount = 4;
 
     //writing the ppm image header
     std::cout<< "P3\n" << ImageWidth << ' ' << ImageHeight <<"\n255\n";
